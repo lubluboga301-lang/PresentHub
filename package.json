@@ -2,6 +2,9 @@
   "name": "nft-cases-root",
   "version": "1.0.0",
   "type": "module",
+  "workspaces": [
+    "server"
+  ],
   "scripts": {
     "install:all": "cd server && npm install && cd ../client && npm install",
     "build": "cd client && npm run build",
