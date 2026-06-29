@@ -5,6 +5,9 @@
   "workspaces": [
     "server"
   ],
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
   "scripts": {
     "install:all": "cd server && npm install && cd ../client && npm install",
     "build": "cd client && npm run build",
