@@ -25,7 +25,6 @@ const BOT_TOKEN = process.env.BOT_TOKEN
 const MINI_APP_URL = process.env.MINI_APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`
 const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(s => s.trim()).filter(Boolean)
 
-const adminSessions = new Set()
 const adminStates = new Map()
 
 function isAdmin(userId) {
@@ -121,7 +120,6 @@ if (BOT_TOKEN) {
       if (!ok) {
         return ctx.reply('🚫 У тебя нет доступа к админ панели.')
       }
-      adminSessions.add(userId)
       adminStates.delete(userId)
       return ctx.reply(
         `🛡️ <b>Добро пожаловать в админ панель!</b>\n\nВыбери действие:`,
@@ -129,10 +127,26 @@ if (BOT_TOKEN) {
       )
     }
 
-    if (!adminSessions.has(userId)) return
+    const ADMIN_BUTTONS = [
+      '💰 выдать gram', '🎁 выдать подарок',
+      '🚫 заблокировать', '✅ разблокировать',
+      '✔️ выдать галочку', '❌ убрать галочку',
+      '👑 сделать админом', '🔱 выдать владельца', '🧪 выдать тестера',
+      '❎ убрать владельца', '🗑 убрать тестера',
+      '📊 статистика', '👤 инфо о юзере',
+      '🚪 выйти из админ панели'
+    ]
+    const hasState = adminStates.has(userId)
+    const isAdminButton = ADMIN_BUTTONS.includes(text)
+
+    if (!isAdminButton && !hasState) return
+
+    if (isAdminButton || hasState) {
+      const ok = await canAdmin(userId)
+      if (!ok) return
+    }
 
     if (text === '🚪 выйти из админ панели') {
-      adminSessions.delete(userId)
       adminStates.delete(userId)
       return ctx.reply('👋 Вышел из админ панели.', Markup.removeKeyboard())
     }
