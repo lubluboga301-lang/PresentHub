@@ -262,4 +262,30 @@ router.post('/inventory/:id/sell', async (req, res) => {
   }
 })
 
+router.get('/leaderboard', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        u.id, u.username, u.first_name, u.last_name,
+        u.balance, u.total_cases_opened, u.is_verified, u.is_admin,
+        COALESCE(inv.total_value, 0) AS inventory_value,
+        COALESCE(inv.item_count, 0) AS item_count
+      FROM users u
+      LEFT JOIN (
+        SELECT ui.user_id, SUM(g.value) AS total_value, COUNT(*) AS item_count
+        FROM user_inventory ui
+        JOIN nft_gifts g ON g.id = ui.gift_id
+        GROUP BY ui.user_id
+      ) inv ON inv.user_id = u.id
+      WHERE u.is_blocked = false
+      ORDER BY u.total_cases_opened DESC, u.balance DESC
+      LIMIT 50
+    `)
+    res.json({ leaders: rows })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 export default router

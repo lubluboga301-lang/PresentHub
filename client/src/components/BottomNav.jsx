@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 const tabs = [
   { path: '/', icon: '🏠', label: 'Главная' },
   { path: '/cases', icon: '🎁', label: 'Кейсы' },
+  { path: '/leaderboard', icon: '🏆', label: 'Топ' },
   { path: '/profile', icon: '👤', label: 'Профиль' },
 ]
 

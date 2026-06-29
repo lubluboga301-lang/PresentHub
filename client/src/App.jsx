@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage.jsx'
 import CasesPage from './pages/CasesPage.jsx'
 import CaseOpenPage from './pages/CaseOpenPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
+import LeaderboardPage from './pages/LeaderboardPage.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import LoadingScreen from './components/LoadingScreen.jsx'
 
@@ -101,6 +102,7 @@ export default function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/cases" element={<CasesPage />} />
                 <Route path="/cases/:slug" element={<CaseOpenPage />} />
+                <Route path="/leaderboard" element={<LeaderboardPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
