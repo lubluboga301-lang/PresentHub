@@ -46,9 +46,11 @@ async function canAdmin(userId) {
 
 function adminKeyboard() {
   return Markup.keyboard([
-    ['💰 Выдать GRAM', '🚫 Заблокировать'],
-    ['✅ Разблокировать', '✔️ Выдать галочку'],
-    ['❌ Убрать галочку', '👑 Сделать админом'],
+    ['💰 Выдать GRAM', '🎁 Выдать подарок'],
+    ['🚫 Заблокировать', '✅ Разблокировать'],
+    ['✔️ Выдать галочку', '❌ Убрать галочку'],
+    ['👑 Сделать админом', '🔱 Выдать владельца', '🧪 Выдать тестера'],
+    ['❎ Убрать владельца', '🗑 Убрать тестера'],
     ['📊 Статистика', '👤 Инфо о юзере'],
     ['🚪 Выйти из админ панели']
   ]).resize()
@@ -182,6 +184,40 @@ if (BOT_TOKEN) {
       return ctx.reply('👑 Введи <b>ID пользователя</b> для назначения админом:', { parse_mode: 'HTML' })
     }
 
+    if (text === '🎁 выдать подарок') {
+      const { rows: gifts } = await pool.query(
+        'SELECT id, name, emoji, rarity, value FROM nft_gifts ORDER BY value ASC'
+      )
+      const list = gifts.map(g =>
+        `<code>${g.id}</code> ${g.emoji} <b>${g.name}</b> — ${g.rarity} — <b>${parseFloat(g.value).toFixed(0)} GRAM</b>`
+      ).join('\n')
+      adminStates.set(userId, { action: 'give_gift_user_id' })
+      return ctx.reply(
+        `🎁 <b>Доступные подарки:</b>\n\n${list}\n\n👤 Теперь введи <b>ID пользователя</b>, которому хочешь выдать подарок:`,
+        { parse_mode: 'HTML' }
+      )
+    }
+
+    if (text === '🔱 выдать владельца') {
+      adminStates.set(userId, { action: 'set_owner' })
+      return ctx.reply('🔱 Введи <b>ID пользователя</b> для выдачи статуса Владельца:', { parse_mode: 'HTML' })
+    }
+
+    if (text === '🧪 выдать тестера') {
+      adminStates.set(userId, { action: 'set_tester' })
+      return ctx.reply('🧪 Введи <b>ID пользователя</b> для выдачи статуса Тестера:', { parse_mode: 'HTML' })
+    }
+
+    if (text === '❎ убрать владельца') {
+      adminStates.set(userId, { action: 'remove_owner' })
+      return ctx.reply('❎ Введи <b>ID пользователя</b> для снятия статуса Владельца:', { parse_mode: 'HTML' })
+    }
+
+    if (text === '🗑 убрать тестера') {
+      adminStates.set(userId, { action: 'remove_tester' })
+      return ctx.reply('🗑 Введи <b>ID пользователя</b> для снятия статуса Тестера:', { parse_mode: 'HTML' })
+    }
+
     if (text === '👤 инфо о юзере') {
       adminStates.set(userId, { action: 'user_info' })
       return ctx.reply('👤 Введи <b>ID пользователя</b>:', { parse_mode: 'HTML' })
@@ -296,6 +332,117 @@ if (BOT_TOKEN) {
       } catch (e) { return ctx.reply('❌ Ошибка: ' + e.message) }
     }
 
+    if (state.action === 'give_gift_user_id') {
+      const targetId = findUser(rawText)
+      if (!targetId) return ctx.reply('❌ Неверный ID пользователя.')
+      const { rows: gifts } = await pool.query(
+        'SELECT id, name, emoji, rarity, value FROM nft_gifts ORDER BY value ASC'
+      )
+      const list = gifts.map(g =>
+        `<code>${g.id}</code> ${g.emoji} <b>${g.name}</b> — ${g.rarity} — <b>${parseFloat(g.value).toFixed(0)} GRAM</b>`
+      ).join('\n')
+      adminStates.set(userId, { action: 'give_gift_id', targetId })
+      return ctx.reply(
+        `👤 Пользователь: <b>${targetId}</b>\n\n🎁 <b>Подарки:</b>\n${list}\n\n✏️ Введи <b>ID подарка</b> (число из списка):`,
+        { parse_mode: 'HTML' }
+      )
+    }
+
+    if (state.action === 'give_gift_id') {
+      const giftId = parseInt(rawText)
+      if (isNaN(giftId) || giftId <= 0) return ctx.reply('❌ Введи числовой ID подарка из списка.')
+      const { rows: giftRows } = await pool.query('SELECT id, name, emoji, rarity, value FROM nft_gifts WHERE id = $1', [giftId])
+      if (!giftRows[0]) return ctx.reply('❌ Подарок с таким ID не найден. Попробуй ещё раз.')
+      adminStates.set(userId, { action: 'give_gift_qty', targetId: state.targetId, giftId, gift: giftRows[0] })
+      const g = giftRows[0]
+      return ctx.reply(
+        `✅ Выбран: ${g.emoji} <b>${g.name}</b> (${g.rarity}, ${parseFloat(g.value).toFixed(0)} GRAM)\n\n🔢 Сколько штук выдать пользователю <b>${state.targetId}</b>?`,
+        { parse_mode: 'HTML' }
+      )
+    }
+
+    if (state.action === 'give_gift_qty') {
+      const qty = parseInt(rawText)
+      if (isNaN(qty) || qty <= 0 || qty > 100) return ctx.reply('❌ Введи количество от 1 до 100.')
+      try {
+        const { rows: userRows } = await pool.query('SELECT first_name, username FROM users WHERE id = $1', [state.targetId])
+        if (!userRows[0]) return ctx.reply('❌ Пользователь не найден в базе. Возможно, ещё не заходил в Mini App.')
+        for (let i = 0; i < qty; i++) {
+          await pool.query(
+            'INSERT INTO user_inventory (user_id, gift_id) VALUES ($1, $2)',
+            [state.targetId, state.giftId]
+          )
+        }
+        adminStates.delete(userId)
+        const u = userRows[0]
+        const g = state.gift
+        return ctx.reply(
+          `🎁 Выдано <b>${qty} шт.</b> подарка ${g.emoji} <b>${g.name}</b>\n` +
+          `👤 Получатель: ${u.first_name || ''} ${u.username ? '@' + u.username : '(#' + state.targetId + ')'}\n` +
+          `💰 Стоимость: <b>${(parseFloat(g.value) * qty).toFixed(0)} GRAM</b>`,
+          { parse_mode: 'HTML' }
+        )
+      } catch (e) { return ctx.reply('❌ Ошибка: ' + e.message) }
+    }
+
+    if (state.action === 'set_owner') {
+      const targetId = findUser(rawText)
+      if (!targetId) return ctx.reply('❌ Неверный ID.')
+      try {
+        const { rows } = await pool.query(
+          'UPDATE users SET is_owner = TRUE WHERE id = $1 RETURNING first_name, username',
+          [targetId]
+        )
+        adminStates.delete(userId)
+        if (!rows[0]) return ctx.reply('❌ Пользователь не найден.')
+        const u = rows[0]
+        return ctx.reply(`🔱 Статус <b>Владелец</b> выдан пользователю ${u.first_name || targetId}!`, { parse_mode: 'HTML' })
+      } catch (e) { return ctx.reply('❌ Ошибка: ' + e.message) }
+    }
+
+    if (state.action === 'set_tester') {
+      const targetId = findUser(rawText)
+      if (!targetId) return ctx.reply('❌ Неверный ID.')
+      try {
+        const { rows } = await pool.query(
+          'UPDATE users SET is_tester = TRUE WHERE id = $1 RETURNING first_name, username',
+          [targetId]
+        )
+        adminStates.delete(userId)
+        if (!rows[0]) return ctx.reply('❌ Пользователь не найден.')
+        const u = rows[0]
+        return ctx.reply(`🧪 Статус <b>Тестер</b> выдан пользователю ${u.first_name || targetId}!`, { parse_mode: 'HTML' })
+      } catch (e) { return ctx.reply('❌ Ошибка: ' + e.message) }
+    }
+
+    if (state.action === 'remove_owner') {
+      const targetId = findUser(rawText)
+      if (!targetId) return ctx.reply('❌ Неверный ID.')
+      try {
+        const { rows } = await pool.query(
+          'UPDATE users SET is_owner = FALSE WHERE id = $1 RETURNING first_name',
+          [targetId]
+        )
+        adminStates.delete(userId)
+        if (!rows[0]) return ctx.reply('❌ Пользователь не найден.')
+        return ctx.reply(`❎ Статус Владельца снят у <b>${rows[0].first_name || targetId}</b>.`, { parse_mode: 'HTML' })
+      } catch (e) { return ctx.reply('❌ Ошибка: ' + e.message) }
+    }
+
+    if (state.action === 'remove_tester') {
+      const targetId = findUser(rawText)
+      if (!targetId) return ctx.reply('❌ Неверный ID.')
+      try {
+        const { rows } = await pool.query(
+          'UPDATE users SET is_tester = FALSE WHERE id = $1 RETURNING first_name',
+          [targetId]
+        )
+        adminStates.delete(userId)
+        if (!rows[0]) return ctx.reply('❌ Пользователь не найден.')
+        return ctx.reply(`🗑 Статус Тестера снят у <b>${rows[0].first_name || targetId}</b>.`, { parse_mode: 'HTML' })
+      } catch (e) { return ctx.reply('❌ Ошибка: ' + e.message) }
+    }
+
     if (state.action === 'user_info') {
       const targetId = findUser(rawText)
       if (!targetId) return ctx.reply('❌ Неверный ID.')
@@ -313,6 +460,8 @@ if (BOT_TOKEN) {
           `🎁 Кейсов открыто: <b>${u.total_cases_opened}</b>\n` +
           `🎒 Предметов в инвентаре: <b>${inv.rows[0].count}</b>\n` +
           `✔️ Верифицирован: ${u.is_verified ? 'Да' : 'Нет'}\n` +
+          `🔱 Владелец: ${u.is_owner ? 'Да' : 'Нет'}\n` +
+          `🧪 Тестер: ${u.is_tester ? 'Да' : 'Нет'}\n` +
           `🚫 Заблокирован: ${u.is_blocked ? 'Да' : 'Нет'}\n` +
           `👑 Админ: ${u.is_admin ? 'Да' : 'Нет'}\n` +
           `📅 Зарегистрирован: ${new Date(u.created_at).toLocaleDateString('ru-RU')}`,

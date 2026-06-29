@@ -61,6 +61,8 @@ export default function ProfilePage() {
   const isVerified = user?.is_verified
   const isBlocked = user?.is_blocked
   const isAdmin = user?.is_admin
+  const isOwner = user?.is_owner
+  const isTester = user?.is_tester
 
   return (
     <motion.div
@@ -115,12 +117,27 @@ export default function ProfilePage() {
                     border: '1px solid rgba(59,130,246,0.4)', color: '#60A5FA', fontWeight: 600
                   }}>✔ Верифицирован</span>
                 )}
-                {isAdmin && (
+                {isOwner && (
+                  <span style={{
+                    fontSize: 11, padding: '2px 8px', borderRadius: 100,
+                    background: 'linear-gradient(135deg, rgba(251,191,36,0.3), rgba(245,158,11,0.2))',
+                    border: '1px solid rgba(251,191,36,0.55)', color: '#FDE68A', fontWeight: 700,
+                    boxShadow: '0 0 8px rgba(251,191,36,0.3)'
+                  }}>🔱 Владелец</span>
+                )}
+                {isAdmin && !isOwner && (
                   <span style={{
                     fontSize: 11, padding: '2px 8px', borderRadius: 100,
                     background: 'linear-gradient(135deg, rgba(245,158,11,0.25), rgba(239,68,68,0.15))',
                     border: '1px solid rgba(245,158,11,0.4)', color: '#FBBF24', fontWeight: 600
                   }}>👑 Админ</span>
+                )}
+                {isTester && (
+                  <span style={{
+                    fontSize: 11, padding: '2px 8px', borderRadius: 100,
+                    background: 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(6,182,212,0.15))',
+                    border: '1px solid rgba(16,185,129,0.4)', color: '#6EE7B7', fontWeight: 600
+                  }}>🧪 Тестер</span>
                 )}
               </div>
               {user?.username && (

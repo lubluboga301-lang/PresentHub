@@ -190,12 +190,27 @@ export default function LeaderboardPage() {
                         border: '1px solid rgba(59,130,246,0.4)', color: '#60A5FA', fontWeight: 600
                       }}>✔</span>
                     )}
-                    {player.is_admin && (
+                    {player.is_owner && (
+                      <span style={{
+                        fontSize: 10, padding: '1px 6px', borderRadius: 100, flexShrink: 0,
+                        background: 'rgba(251,191,36,0.25)',
+                        border: '1px solid rgba(251,191,36,0.5)', color: '#FDE68A', fontWeight: 700,
+                        boxShadow: '0 0 6px rgba(251,191,36,0.25)'
+                      }}>🔱</span>
+                    )}
+                    {player.is_admin && !player.is_owner && (
                       <span style={{
                         fontSize: 10, padding: '1px 6px', borderRadius: 100, flexShrink: 0,
                         background: 'rgba(245,158,11,0.2)',
                         border: '1px solid rgba(245,158,11,0.4)', color: '#FBBF24', fontWeight: 600
                       }}>👑</span>
+                    )}
+                    {player.is_tester && (
+                      <span style={{
+                        fontSize: 10, padding: '1px 6px', borderRadius: 100, flexShrink: 0,
+                        background: 'rgba(16,185,129,0.18)',
+                        border: '1px solid rgba(16,185,129,0.4)', color: '#6EE7B7', fontWeight: 600
+                      }}>🧪</span>
                     )}
                   </div>
                   <div style={{

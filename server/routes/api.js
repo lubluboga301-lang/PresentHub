@@ -267,7 +267,7 @@ router.get('/leaderboard', async (req, res) => {
     const { rows } = await pool.query(`
       SELECT
         u.id, u.username, u.first_name, u.last_name,
-        u.balance, u.total_cases_opened, u.is_verified, u.is_admin,
+        u.balance, u.total_cases_opened, u.is_verified, u.is_admin, u.is_owner, u.is_tester,
         COALESCE(inv.total_value, 0) AS inventory_value,
         COALESCE(inv.item_count, 0) AS item_count
       FROM users u
