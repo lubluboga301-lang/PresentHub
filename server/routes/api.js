@@ -84,7 +84,7 @@ router.get('/profile', async (req, res) => {
       `SELECT ui.id, ui.obtained_at, g.name, g.emoji, g.rarity, g.value, g.color_from, g.color_to, c.name as case_name
        FROM user_inventory ui
        JOIN nft_gifts g ON g.id = ui.gift_id
-       JOIN cases c ON c.id = ui.case_id
+       LEFT JOIN cases c ON c.id = ui.case_id
        WHERE ui.user_id = $1
        ORDER BY ui.obtained_at DESC
        LIMIT 50`,
