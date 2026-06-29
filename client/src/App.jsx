@@ -17,6 +17,15 @@ export function useApp() {
   return useContext(AppContext)
 }
 
+function getHeaders() {
+  const initData = tg?.initData || ''
+  const headers = { 'Content-Type': 'application/json' }
+  if (initData) {
+    headers['x-telegram-init-data'] = initData
+  }
+  return headers
+}
+
 export default function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -26,8 +35,6 @@ export default function App() {
     if (tg) {
       tg.ready()
       tg.expand()
-      tg.setHeaderColor('#0a0a1a')
-      tg.setBackgroundColor('#0a0a1a')
     }
     authenticate()
   }, [])
@@ -35,22 +42,23 @@ export default function App() {
   async function authenticate() {
     try {
       const initData = tg?.initData || ''
-      const tgUser = tg?.initDataUnsafe?.user
+      const headers = getHeaders()
 
-      const headers = {}
-      if (initData) headers['x-telegram-init-data'] = initData
-
-      if (!initData) {
-        headers['x-dev-user-id'] = '123456'
+      const bodyData = {}
+      if (initData) {
+        bodyData.initData = initData
+      } else {
+        const userId = tg?.initDataUnsafe?.user?.id || 'guest_' + Math.floor(Math.random() * 1000000)
+        bodyData.guestId = String(userId)
       }
 
-      const { data } = await axios.post('/api/auth', { initData }, { headers })
+      const { data } = await axios.post('/api/auth', bodyData, { headers })
       setUser(data.user)
     } catch (e) {
-      console.error(e)
-      setError('Ошибка подключения к серверу')
+      console.error('Auth error:', e?.response?.status, e?.message)
+      setError('Не удалось подключиться. Попробуй ещё раз.')
     } finally {
-      setTimeout(() => setLoading(false), 1500)
+      setLoading(false)
     }
   }
 
@@ -63,15 +71,18 @@ export default function App() {
   if (error) return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: '100vh', flexDirection: 'column', gap: 16, padding: 24, textAlign: 'center'
+      height: '100vh', flexDirection: 'column', gap: 16, padding: 24, textAlign: 'center',
+      background: 'linear-gradient(160deg, #0a0a1a 0%, #0d0b2e 40%, #0a0a1a 100%)'
     }}>
       <div style={{ fontSize: 48 }}>⚠️</div>
-      <div style={{ color: '#EF4444', fontSize: 16 }}>{error}</div>
-      <button onClick={authenticate} style={{
+      <div style={{ color: '#EF4444', fontSize: 16, maxWidth: 280 }}>{error}</div>
+      <button onClick={() => { setError(null); setLoading(true); authenticate() }} style={{
         background: 'linear-gradient(135deg, #6366f1, #8B5CF6)',
         color: 'white', border: 'none', borderRadius: 12,
         padding: '12px 24px', fontSize: 16, cursor: 'pointer'
-      }}>Попробовать снова</button>
+      }}>
+        🔄 Попробовать снова
+      </button>
     </div>
   )
 

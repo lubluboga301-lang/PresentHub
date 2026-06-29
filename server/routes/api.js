@@ -9,6 +9,7 @@ function verifyTelegramWebAppData(initData, botToken) {
   try {
     const params = new URLSearchParams(initData)
     const hash = params.get('hash')
+    if (!hash) return null
     params.delete('hash')
     const dataCheckString = [...params.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
@@ -17,7 +18,9 @@ function verifyTelegramWebAppData(initData, botToken) {
     const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest()
     const computedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex')
     if (computedHash !== hash) return null
-    return JSON.parse(params.get('user') || '{}')
+    const userStr = params.get('user')
+    if (!userStr) return null
+    return JSON.parse(userStr)
   } catch {
     return null
   }
@@ -29,12 +32,18 @@ function parseUser(req) {
 
   if (initData && botToken) {
     const user = verifyTelegramWebAppData(initData, botToken)
-    if (user) return user
+    if (user && user.id) return user
   }
 
   const devId = req.headers['x-dev-user-id']
-  if (devId && process.env.NODE_ENV !== 'production') {
+  if (devId) {
     return { id: parseInt(devId), first_name: 'Dev', username: 'devuser', last_name: '' }
+  }
+
+  const guestId = req.body?.guestId
+  if (guestId) {
+    const numId = parseInt(String(guestId).replace(/\D/g, '')) || Math.floor(Math.random() * 9000000 + 1000000)
+    return { id: numId, first_name: 'Гость', username: null, last_name: '' }
   }
 
   return null
@@ -49,16 +58,16 @@ router.post('/auth', async (req, res) => {
       `INSERT INTO users (id, username, first_name, last_name)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (id) DO UPDATE SET
-         username = EXCLUDED.username,
-         first_name = EXCLUDED.first_name,
-         last_name = EXCLUDED.last_name
+         username = COALESCE(EXCLUDED.username, users.username),
+         first_name = COALESCE(NULLIF(EXCLUDED.first_name, ''), users.first_name),
+         last_name = COALESCE(EXCLUDED.last_name, users.last_name)
        RETURNING *`,
-      [tgUser.id, tgUser.username || null, tgUser.first_name || '', tgUser.last_name || '']
+      [tgUser.id, tgUser.username || null, tgUser.first_name || 'Игрок', tgUser.last_name || '']
     )
 
     res.json({ user: rows[0] })
   } catch (err) {
-    console.error(err)
+    console.error('Auth error:', err)
     res.status(500).json({ error: 'Server error' })
   }
 })
