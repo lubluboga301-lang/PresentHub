@@ -16,6 +16,9 @@ export async function initDB() {
       last_name TEXT,
       balance DECIMAL(18, 6) DEFAULT 100.0,
       total_cases_opened INTEGER DEFAULT 0,
+      is_blocked BOOLEAN DEFAULT FALSE,
+      is_verified BOOLEAN DEFAULT FALSE,
+      is_admin BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT NOW()
     );
 
@@ -61,6 +64,12 @@ export async function initDB() {
     );
   `)
 
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
+  `)
+
   const { rows: caseRows } = await pool.query('SELECT COUNT(*) FROM cases')
   if (parseInt(caseRows[0].count) === 0) {
     await seedData()
@@ -90,7 +99,7 @@ async function seedData() {
 async function seedGifts(caseId, slug) {
   const giftSets = {
     starter: [
-      { name: 'Durov\'s Cap', emoji: '🧢', rarity: 'common', value: 5, chance: 45, from: '#6B7280', to: '#9CA3AF' },
+      { name: "Durov's Cap", emoji: '🧢', rarity: 'common', value: 5, chance: 45, from: '#6B7280', to: '#9CA3AF' },
       { name: 'Love Potion', emoji: '🧪', rarity: 'common', value: 8, chance: 30, from: '#EC4899', to: '#F472B6' },
       { name: 'Crystal Ball', emoji: '🔮', rarity: 'uncommon', value: 15, chance: 15, from: '#8B5CF6', to: '#A78BFA' },
       { name: 'Golden Star', emoji: '⭐', rarity: 'rare', value: 40, chance: 7, from: '#F59E0B', to: '#FBBF24' },

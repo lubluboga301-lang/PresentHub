@@ -58,6 +58,9 @@ export default function ProfilePage() {
   const name = user?.first_name || 'Игрок'
   const balance = parseFloat(user?.balance || 0)
   const inventoryValue = inventory.reduce((sum, i) => sum + parseFloat(i.value), 0)
+  const isVerified = user?.is_verified
+  const isBlocked = user?.is_blocked
+  const isAdmin = user?.is_admin
 
   return (
     <motion.div
@@ -77,19 +80,54 @@ export default function ProfilePage() {
           border: '1px solid rgba(99,102,241,0.25)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-            <div style={{
-              width: 64, height: 64, borderRadius: '50%', flexShrink: 0,
-              background: 'linear-gradient(135deg, #6366f1, #8B5CF6, #EC4899)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 28, fontWeight: 800, color: 'white',
-              boxShadow: '0 4px 20px rgba(99,102,241,0.5)'
-            }}>
-              {name[0]?.toUpperCase()}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: '50%',
+                background: isAdmin
+                  ? 'linear-gradient(135deg, #F59E0B, #EF4444)'
+                  : 'linear-gradient(135deg, #6366f1, #8B5CF6, #EC4899)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 28, fontWeight: 800, color: 'white',
+                boxShadow: isAdmin
+                  ? '0 4px 20px rgba(245,158,11,0.6)'
+                  : '0 4px 20px rgba(99,102,241,0.5)'
+              }}>
+                {name[0]?.toUpperCase()}
+              </div>
+              {isVerified && (
+                <div style={{
+                  position: 'absolute', bottom: -2, right: -2,
+                  width: 22, height: 22, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #3B82F6, #06B6D4)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 12, border: '2px solid #0d0b2e',
+                  boxShadow: '0 0 10px rgba(59,130,246,0.6)'
+                }}>✔</div>
+              )}
             </div>
-            <div>
-              <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 2 }}>{name}</h2>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: 20, fontWeight: 800 }}>{name}</h2>
+                {isVerified && (
+                  <span style={{
+                    fontSize: 11, padding: '2px 8px', borderRadius: 100,
+                    background: 'linear-gradient(135deg, rgba(59,130,246,0.25), rgba(6,182,212,0.15))',
+                    border: '1px solid rgba(59,130,246,0.4)', color: '#60A5FA', fontWeight: 600
+                  }}>✔ Верифицирован</span>
+                )}
+                {isAdmin && (
+                  <span style={{
+                    fontSize: 11, padding: '2px 8px', borderRadius: 100,
+                    background: 'linear-gradient(135deg, rgba(245,158,11,0.25), rgba(239,68,68,0.15))',
+                    border: '1px solid rgba(245,158,11,0.4)', color: '#FBBF24', fontWeight: 600
+                  }}>👑 Админ</span>
+                )}
+              </div>
               {user?.username && (
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>@{user.username}</p>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 2 }}>@{user.username}</p>
+              )}
+              {isBlocked && (
+                <p style={{ color: '#EF4444', fontSize: 12, marginTop: 4 }}>🚫 Аккаунт заблокирован</p>
               )}
             </div>
           </div>
