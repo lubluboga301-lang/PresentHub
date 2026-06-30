@@ -502,17 +502,20 @@ initDB().then(() => {
     if (ADMIN_IDS.length) console.log(`🛡️  Admins: ${ADMIN_IDS.join(', ')}`)
 
     if (bot) {
-      const WEBHOOK_DOMAIN = process.env.REPLIT_DEV_DOMAIN
+      const WEBHOOK_DOMAIN = process.env.REPLIT_DEPLOYMENT_URL || process.env.WEBHOOK_DOMAIN
       if (WEBHOOK_DOMAIN) {
-        const webhookUrl = `https://${WEBHOOK_DOMAIN}/bot-webhook`
+        const webhookUrl = `${WEBHOOK_DOMAIN}/bot-webhook`
         try {
           await bot.telegram.setWebhook(webhookUrl, { drop_pending_updates: true })
           console.log(`🔗 Webhook set: ${webhookUrl}`)
         } catch (e) {
           console.error('Webhook error:', e.message)
+          bot.launch({ dropPendingUpdates: true })
+            .then(() => console.log('🤖 Bot launched (polling)'))
+            .catch(e2 => console.error('Polling error:', e2.message))
         }
       } else {
-        console.log('⚠️ No REPLIT_DEV_DOMAIN — trying long polling...')
+        console.log('🤖 Starting bot in polling mode...')
         bot.launch({ dropPendingUpdates: true })
           .then(() => console.log('🤖 Bot launched (polling)'))
           .catch(e => console.error('Polling error:', e.message))
