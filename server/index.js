@@ -20,6 +20,7 @@ app.post('/bot-webhook', (req, res) => {
   res.sendStatus(200)
 })
 
+const DISABLE_BOT = process.env.DISABLE_BOT === 'true'
 const BOT_TOKEN = process.env.BOT_TOKEN
 const MINI_APP_URL = process.env.MINI_APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN}`
 const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(s => s.trim()).filter(Boolean)
@@ -61,7 +62,7 @@ function findUser(text) {
 
 let bot = null
 
-if (BOT_TOKEN) {
+if (BOT_TOKEN && !DISABLE_BOT) {
   bot = new Telegraf(BOT_TOKEN)
 
   bot.start(async (ctx) => {
