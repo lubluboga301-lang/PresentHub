@@ -14,10 +14,10 @@ const PORT = process.env.PORT || 5000
 app.use(cors())
 app.use(express.json())
 app.use('/api', apiRouter)
-app.use(express.static(join(__dirname, 'public')))
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found' })
-  res.sendFile(join(__dirname, 'public', 'index.html'))
+
+app.post('/bot-webhook', (req, res) => {
+  if (bot) bot.handleUpdate(req.body)
+  res.sendStatus(200)
 })
 
 const BOT_TOKEN = process.env.BOT_TOKEN
@@ -484,18 +484,38 @@ if (BOT_TOKEN) {
     }
   })
 
-  bot.launch().then(() => console.log('🤖 Bot launched')).catch(console.error)
-
-  process.once('SIGINT', () => bot.stop('SIGINT'))
-  process.once('SIGTERM', () => bot.stop('SIGTERM'))
 } else {
   console.warn('⚠️  BOT_TOKEN not set — bot disabled, API only mode')
 }
 
+app.use(express.static(join(__dirname, 'public')))
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found' })
+  res.sendFile(join(__dirname, 'public', 'index.html'))
+})
+
 initDB().then(() => {
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(PORT, '0.0.0.0', async () => {
     console.log(`🚀 Server running on port ${PORT}`)
     console.log(`🌐 Mini App URL: ${MINI_APP_URL}`)
     if (ADMIN_IDS.length) console.log(`🛡️  Admins: ${ADMIN_IDS.join(', ')}`)
+
+    if (bot) {
+      const WEBHOOK_DOMAIN = process.env.REPLIT_DEV_DOMAIN
+      if (WEBHOOK_DOMAIN) {
+        const webhookUrl = `https://${WEBHOOK_DOMAIN}/bot-webhook`
+        try {
+          await bot.telegram.setWebhook(webhookUrl, { drop_pending_updates: true })
+          console.log(`🔗 Webhook set: ${webhookUrl}`)
+        } catch (e) {
+          console.error('Webhook error:', e.message)
+        }
+      } else {
+        console.log('⚠️ No REPLIT_DEV_DOMAIN — trying long polling...')
+        bot.launch({ dropPendingUpdates: true })
+          .then(() => console.log('🤖 Bot launched (polling)'))
+          .catch(e => console.error('Polling error:', e.message))
+      }
+    }
   })
 }).catch(console.error)
