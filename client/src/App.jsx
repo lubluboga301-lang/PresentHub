@@ -57,7 +57,12 @@ export default function App() {
       setUser(data.user)
     } catch (e) {
       console.error('Auth error:', e?.response?.status, e?.message)
-      setError('Не удалось подключиться. Попробуй ещё раз.')
+      const status = e?.response?.status
+      if (status === 500 || status === 503 || !status) {
+        setError('server_down')
+      } else {
+        setError('Не удалось войти. Попробуй ещё раз.')
+      }
     } finally {
       setLoading(false)
     }
@@ -75,8 +80,27 @@ export default function App() {
       height: '100vh', flexDirection: 'column', gap: 16, padding: 24, textAlign: 'center',
       background: 'linear-gradient(160deg, #0a0a1a 0%, #0d0b2e 40%, #0a0a1a 100%)'
     }}>
-      <div style={{ fontSize: 48 }}>⚠️</div>
-      <div style={{ color: '#EF4444', fontSize: 16, maxWidth: 280 }}>{error}</div>
+      {error === 'server_down' ? (
+        <>
+          <div style={{ fontSize: 52 }}>🔧</div>
+          <div style={{ color: 'white', fontSize: 18, fontWeight: 700 }}>Сервер не настроен</div>
+          <div style={{
+            color: 'rgba(255,255,255,0.6)', fontSize: 13, maxWidth: 300, lineHeight: 1.6,
+            background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '14px 16px',
+            border: '1px solid rgba(255,255,255,0.1)', textAlign: 'left'
+          }}>
+            Если ты клонировал проект, нужно:<br /><br />
+            <b style={{ color: '#F59E0B' }}>1.</b> Добавить секрет <code style={{ color: '#6EE7B7' }}>BOT_TOKEN</code><br />
+            <b style={{ color: '#F59E0B' }}>2.</b> Создать PostgreSQL базу во вкладке Database<br />
+            <b style={{ color: '#F59E0B' }}>3.</b> Перезапустить воркфлоу
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize: 48 }}>⚠️</div>
+          <div style={{ color: '#EF4444', fontSize: 16, maxWidth: 280 }}>{error}</div>
+        </>
+      )}
       <button onClick={() => { setError(null); setLoading(true); authenticate() }} style={{
         background: 'linear-gradient(135deg, #6366f1, #8B5CF6)',
         color: 'white', border: 'none', borderRadius: 12,

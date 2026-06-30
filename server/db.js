@@ -2,9 +2,16 @@ import pg from 'pg'
 
 const { Pool } = pg
 
+if (!process.env.DATABASE_URL) {
+  console.error('❌ FATAL: DATABASE_URL is not set.')
+  console.error('   → Go to Replit Database tab and create a PostgreSQL database.')
+  console.error('   → The DATABASE_URL secret will be added automatically.')
+  process.exit(1)
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
 })
 
 export async function initDB() {

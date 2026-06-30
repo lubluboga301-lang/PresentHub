@@ -15,6 +15,15 @@ app.use(cors())
 app.use(express.json())
 app.use('/api', apiRouter)
 
+app.get('/api/health', (req, res) => {
+  res.json({
+    ok: true,
+    bot: !!BOT_TOKEN,
+    db: !!process.env.DATABASE_URL,
+    domain: process.env.REPLIT_DEV_DOMAIN || null
+  })
+})
+
 app.post('/bot-webhook', (req, res) => {
   if (bot) bot.handleUpdate(req.body)
   res.sendStatus(200)
@@ -545,11 +554,20 @@ async function startBot() {
   process.once('SIGTERM', () => bot.stop('SIGTERM'))
 }
 
+// ── Startup diagnostics ───────────────────────────────────────────────────
+console.log('─────────────────────────────────────')
+console.log('  NFT Cases — startup check')
+console.log('─────────────────────────────────────')
+console.log(`  DATABASE_URL : ${process.env.DATABASE_URL ? '✅ set' : '❌ MISSING — add Replit PostgreSQL'}`)
+console.log(`  BOT_TOKEN    : ${BOT_TOKEN ? '✅ set' : '⚠️  not set — bot disabled'}`)
+console.log(`  DEV_DOMAIN   : ${process.env.REPLIT_DEV_DOMAIN ? '✅ ' + process.env.REPLIT_DEV_DOMAIN : '⚠️  not set'}`)
+console.log(`  ADMIN_IDS    : ${ADMIN_IDS.length ? ADMIN_IDS.join(', ') : '(none)'}`)
+console.log('─────────────────────────────────────')
+
 initDB().then(() => {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`)
     console.log(`🌐 Mini App URL: ${MINI_APP_URL}`)
-    if (ADMIN_IDS.length) console.log(`🛡️  Admins: ${ADMIN_IDS.join(', ')}`)
     startBot()
   })
 }).catch(console.error)
