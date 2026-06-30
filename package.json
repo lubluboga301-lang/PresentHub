@@ -11,10 +11,10 @@
     "setup": "npm run install:all && npm run build"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "telegraf": "^4.16.3",
-    "pg": "^8.11.3",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2",
+    "pg": "^8.22.0",
+    "telegraf": "^4.16.3"
   }
 }

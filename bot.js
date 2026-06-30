@@ -1,4 +1,5 @@
-import 'dotenv/config'
+import dotenv from 'dotenv';
+dotenv.config();
 import { Telegraf, Markup } from 'telegraf'
 import pg from 'pg'
 
