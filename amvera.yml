@@ -1,0 +1,13 @@
+meta:
+  environment: node
+  toolchain:
+    name: npm
+    version: 20
+
+build:
+  commands:
+    - npm install
+    - cd client && npm install && npm run build
+
+run:
+  command: node server/index.js

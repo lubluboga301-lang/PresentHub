@@ -1,9 +1,8 @@
 #!/bin/bash
 set -e
 
-echo "📦 Installing server dependencies..."
-cd server && npm install --silent
-cd ..
+echo "📦 Installing dependencies..."
+npm install --silent
 
 echo "📦 Installing client dependencies..."
 cd client && npm install --include=dev --silent
