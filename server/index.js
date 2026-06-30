@@ -495,31 +495,61 @@ app.get('*', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'index.html'))
 })
 
+async function startBot() {
+  if (!bot) return
+
+  // Verify Node.js can reach Telegram at all
+  try {
+    const me = await bot.telegram.getMe()
+    console.log(`🤖 Telegram reachable — bot: @${me.username}`)
+  } catch (e) {
+    console.error('❌ Cannot reach Telegram API from Node.js:', e.message)
+    return
+  }
+
+  // Global error handler — prevents silent crashes on handler errors
+  bot.catch((err, ctx) => {
+    console.error('Bot handler error in', ctx?.updateType ?? 'unknown', ':', err.message)
+  })
+
+  // Try webhook via Replit dev domain first (more reliable in cloud envs)
+  const devDomain = process.env.REPLIT_DEV_DOMAIN
+  if (devDomain) {
+    const webhookUrl = `https://${devDomain}/bot-webhook`
+    try {
+      await bot.telegram.setWebhook(webhookUrl, {
+        drop_pending_updates: true,
+        allowed_updates: ['message', 'callback_query']
+      })
+      console.log(`🔗 Webhook set: ${webhookUrl}`)
+      return // webhook mode — no polling needed
+    } catch (e) {
+      console.warn('⚠️  Webhook failed, falling back to polling:', e.message)
+    }
+  }
+
+  // Fallback: polling
+  try {
+    await bot.telegram.deleteWebhook({ drop_pending_updates: true })
+  } catch (e) {
+    console.warn('⚠️  Could not clear webhook:', e.message)
+  }
+
+  bot.launch({ allowedUpdates: ['message', 'callback_query'] })
+    .catch(e => console.error('❌ Bot polling stopped:', e.message))
+
+  console.log('🤖 Bot polling started')
+
+  // Graceful shutdown
+  process.once('SIGINT', () => bot.stop('SIGINT'))
+  process.once('SIGTERM', () => bot.stop('SIGTERM'))
+}
+
 initDB().then(() => {
-  app.listen(PORT, '0.0.0.0', async () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`)
     console.log(`🌐 Mini App URL: ${MINI_APP_URL}`)
     if (ADMIN_IDS.length) console.log(`🛡️  Admins: ${ADMIN_IDS.join(', ')}`)
-
-    if (bot) {
-      const WEBHOOK_DOMAIN = process.env.REPLIT_DEPLOYMENT_URL || process.env.WEBHOOK_DOMAIN
-      if (WEBHOOK_DOMAIN) {
-        const webhookUrl = `${WEBHOOK_DOMAIN}/bot-webhook`
-        try {
-          await bot.telegram.setWebhook(webhookUrl, { drop_pending_updates: true })
-          console.log(`🔗 Webhook set: ${webhookUrl}`)
-        } catch (e) {
-          console.error('Webhook error:', e.message)
-          bot.launch({ dropPendingUpdates: true })
-            .then(() => console.log('🤖 Bot launched (polling)'))
-            .catch(e2 => console.error('Polling error:', e2.message))
-        }
-      } else {
-        console.log('🤖 Starting bot in polling mode...')
-        bot.launch({ dropPendingUpdates: true })
-          .then(() => console.log('🤖 Bot launched (polling)'))
-          .catch(e => console.error('Polling error:', e.message))
-      }
-    }
+    startBot()
   })
 }).catch(console.error)
