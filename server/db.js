@@ -70,6 +70,7 @@ export async function initDB() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS is_owner BOOLEAN DEFAULT FALSE;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS is_tester BOOLEAN DEFAULT FALSE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS last_daily_bonus TIMESTAMP;
   `)
 
   const { rows: caseRows } = await pool.query('SELECT COUNT(*) FROM cases')

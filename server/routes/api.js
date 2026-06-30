@@ -262,6 +262,68 @@ router.post('/inventory/:id/sell', async (req, res) => {
   }
 })
 
+const DAILY_BONUS_AMOUNT = 25
+const DAILY_BONUS_COOLDOWN_MS = 24 * 60 * 60 * 1000
+
+router.get('/daily-bonus', async (req, res) => {
+  try {
+    const tgUser = parseUser(req)
+    if (!tgUser) return res.status(401).json({ error: 'Unauthorized' })
+
+    const { rows } = await pool.query('SELECT last_daily_bonus FROM users WHERE id = $1', [tgUser.id])
+    if (!rows[0]) return res.status(404).json({ error: 'User not found' })
+
+    const last = rows[0].last_daily_bonus
+    const now = Date.now()
+    const nextClaimAt = last ? new Date(last).getTime() + DAILY_BONUS_COOLDOWN_MS : 0
+    const available = now >= nextClaimAt
+
+    res.json({ available, nextClaimAt: nextClaimAt || null, amount: DAILY_BONUS_AMOUNT })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+router.post('/daily-bonus/claim', async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const tgUser = parseUser(req)
+    if (!tgUser) return res.status(401).json({ error: 'Unauthorized' })
+
+    await client.query('BEGIN')
+    const { rows } = await client.query('SELECT last_daily_bonus FROM users WHERE id = $1 FOR UPDATE', [tgUser.id])
+    if (!rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'User not found' }) }
+
+    const last = rows[0].last_daily_bonus
+    const now = Date.now()
+    const nextClaimAt = last ? new Date(last).getTime() + DAILY_BONUS_COOLDOWN_MS : 0
+
+    if (now < nextClaimAt) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'Not ready yet', nextClaimAt })
+    }
+
+    const { rows: updated } = await client.query(
+      'UPDATE users SET balance = balance + $1, last_daily_bonus = NOW() WHERE id = $2 RETURNING balance',
+      [DAILY_BONUS_AMOUNT, tgUser.id]
+    )
+    await client.query(
+      'INSERT INTO transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)',
+      [tgUser.id, 'daily_bonus', DAILY_BONUS_AMOUNT, 'Ежедневный бонус']
+    )
+    await client.query('COMMIT')
+
+    res.json({ newBalance: updated[0].balance, amount: DAILY_BONUS_AMOUNT })
+  } catch (err) {
+    await client.query('ROLLBACK')
+    console.error(err)
+    res.status(500).json({ error: 'Server error' })
+  } finally {
+    client.release()
+  }
+})
+
 router.get('/leaderboard', async (req, res) => {
   try {
     const { rows } = await pool.query(`

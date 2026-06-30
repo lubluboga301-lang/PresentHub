@@ -1,10 +1,155 @@
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import { useApp } from '../App.jsx'
 import GramBadge from '../components/GramBadge.jsx'
 
+const tg = window.Telegram?.WebApp
+
+function getHeaders(userId) {
+  const initData = tg?.initData || ''
+  const headers = { 'Content-Type': 'application/json' }
+  if (initData) headers['x-telegram-init-data'] = initData
+  else if (userId) headers['x-dev-user-id'] = String(userId)
+  return headers
+}
+
+function formatCountdown(ms) {
+  if (ms <= 0) return '00:00:00'
+  const h = Math.floor(ms / 3600000)
+  const m = Math.floor((ms % 3600000) / 60000)
+  const s = Math.floor((ms % 60000) / 1000)
+  return [h, m, s].map(n => String(n).padStart(2, '0')).join(':')
+}
+
+function DailyBonusCard({ onClaimed, userId }) {
+  const [state, setState] = useState(null)
+  const [claiming, setClaiming] = useState(false)
+  const [claimed, setClaimed] = useState(false)
+  const [countdown, setCountdown] = useState('')
+
+  const fetchStatus = useCallback(async () => {
+    if (!userId) return
+    try {
+      const { data } = await axios.get('/api/daily-bonus', { headers: getHeaders(userId) })
+      setState(data)
+    } catch {}
+  }, [userId])
+
+  useEffect(() => { fetchStatus() }, [fetchStatus])
+
+  useEffect(() => {
+    if (!state || state.available) return
+    const tick = () => {
+      const ms = state.nextClaimAt - Date.now()
+      if (ms <= 0) { fetchStatus(); return }
+      setCountdown(formatCountdown(ms))
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [state, fetchStatus])
+
+  async function claim() {
+    if (claiming || claimed) return
+    setClaiming(true)
+    try {
+      const { data } = await axios.post('/api/daily-bonus/claim', {}, { headers: getHeaders(userId) })
+      setClaimed(true)
+      setState(prev => ({ ...prev, available: false, nextClaimAt: Date.now() + 24 * 3600 * 1000 }))
+      tg?.HapticFeedback?.notificationOccurred?.('success')
+      onClaimed(data.newBalance)
+    } catch (e) {
+      const next = e.response?.data?.nextClaimAt
+      if (next) setState(prev => ({ ...prev, available: false, nextClaimAt: next }))
+    } finally {
+      setClaiming(false)
+    }
+  }
+
+  if (!state) return null
+
+  const isReady = state.available && !claimed
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: 0.15 }}
+      style={{
+        marginBottom: 20, borderRadius: 20, overflow: 'hidden',
+        background: isReady
+          ? 'linear-gradient(135deg, rgba(245,158,11,0.18), rgba(251,191,36,0.10))'
+          : 'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))',
+        border: isReady
+          ? '1px solid rgba(245,158,11,0.45)'
+          : '1px solid rgba(255,255,255,0.08)',
+        boxShadow: isReady ? '0 0 30px rgba(245,158,11,0.15)' : 'none',
+        transition: 'all 0.4s'
+      }}
+    >
+      <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <motion.div
+          animate={isReady ? { scale: [1, 1.12, 1] } : {}}
+          transition={{ duration: 1.5, repeat: Infinity }}
+          style={{
+            width: 52, height: 52, borderRadius: 16, flexShrink: 0,
+            background: isReady
+              ? 'linear-gradient(135deg, #F59E0B, #FBBF24)'
+              : 'rgba(255,255,255,0.07)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 26,
+            boxShadow: isReady ? '0 4px 20px rgba(245,158,11,0.5)' : 'none'
+          }}
+        >
+          🎁
+        </motion.div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 3 }}>
+            Ежедневный бонус
+          </div>
+          {isReady ? (
+            <div style={{ color: '#FDE68A', fontSize: 13 }}>
+              +{state.amount} GRAM готовы к получению!
+            </div>
+          ) : claimed ? (
+            <div style={{ color: '#10B981', fontSize: 13 }}>
+              ✅ Получено! Следующий через 24 ч
+            </div>
+          ) : (
+            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13 }}>
+              ⏳ {countdown || '—'}
+            </div>
+          )}
+        </div>
+
+        <motion.button
+          whileTap={isReady ? { scale: 0.93 } : {}}
+          onClick={isReady ? claim : undefined}
+          disabled={!isReady || claiming}
+          style={{
+            padding: '10px 16px', borderRadius: 12, border: 'none',
+            fontWeight: 700, fontSize: 13, cursor: isReady ? 'pointer' : 'default',
+            flexShrink: 0,
+            background: isReady
+              ? 'linear-gradient(135deg, #F59E0B, #FBBF24)'
+              : 'rgba(255,255,255,0.06)',
+            color: isReady ? '#000' : 'rgba(255,255,255,0.25)',
+            boxShadow: isReady ? '0 4px 16px rgba(245,158,11,0.4)' : 'none',
+            transition: 'all 0.3s'
+          }}
+        >
+          {claiming ? '...' : isReady ? 'Забрать' : '🔒'}
+        </motion.button>
+      </div>
+    </motion.div>
+  )
+}
+
 export default function HomePage() {
-  const { user } = useApp()
+  const { user, updateBalance } = useApp()
   const navigate = useNavigate()
 
   const name = user?.first_name || 'Игрок'
@@ -72,6 +217,8 @@ export default function HomePage() {
           <StatItem label="Редких находок" value={Math.floor(opened * 0.15)} emoji="💎" />
         </div>
       </motion.div>
+
+      <DailyBonusCard onClaimed={updateBalance} userId={user?.id} />
 
       <motion.h3
         initial={{ opacity: 0 }}
