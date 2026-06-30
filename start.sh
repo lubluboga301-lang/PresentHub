@@ -1,8 +1,10 @@
 #!/bin/bash
 set -e
 
-# Free port 5000 if something is already using it
-fuser -k 5000/tcp 2>/dev/null || true
+APP_PORT="${PORT:-5000}"
+
+# Free port if something is already using it
+fuser -k "${APP_PORT}/tcp" 2>/dev/null || true
 
 echo "📦 Installing dependencies..."
 npm install --silent
